@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.8.0 (prev: 1.7.12)
+
+* Draft-06 as default version
+
 ## 1.5.6
 
 * Improving the error messages from jesse when using oneOf/anyOf
