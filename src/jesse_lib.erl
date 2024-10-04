@@ -35,10 +35,35 @@
         , get_schema_id_key/1
         , get_schema_id/1
         , get_schema_id/2
+        , json_encode/1
+        , json_decode/1
         ]).
 
 %% Includes
 -include("jesse_schema_validator.hrl").
+
+%% Use new json library if available
+-ifdef(OTP_RELEASE).
+  -if(?OTP_RELEASE >= 27).
+  %% OTP 27 or higher
+json_decode(Bin) ->
+    json:decode(Bin).
+json_encode(Bin) ->
+    json:encode(Bin).
+  -else.
+  %% OTP 26 to 21.
+json_decode(Bin) ->
+    jsx:decode(Bin, [{return_maps, false}]).
+json_encode(Bin) ->
+    jsx:encode(Bin).
+  -endif.
+-else.
+  %% OTP 20 or lower.
+json_decode(Bin) ->
+    jsx:decode(Bin, [{return_maps, false}]).
+json_encode(Bin) ->
+    jsx:encode(Bin).
+-endif.
 
 %%% API
 %% @doc Returns an empty list if the given value is ?not_found.
@@ -239,7 +264,7 @@ compare_properties(Value1, Value2) ->
 %% @doc Returns "id" or "$id" based on the value of $schema.
 -spec get_schema_id_key(Schema :: jesse:json_term()) -> binary().
 get_schema_id_key(Schema) ->
-  case jesse_json_path:value(?SCHEMA, Schema, ?default_schema_ver) of
+  case jesse_json_path:value(?SCHEMA, Schema, ?json_schema_draft6) of
     ?json_schema_draft6 -> ?ID;
                       _ -> ?ID_OLD
   end.

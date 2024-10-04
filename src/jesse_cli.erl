@@ -75,7 +75,7 @@ run(Options, [Schema|_] = Schemata, [JsonInstance|JsonInstances]) ->
     undefined ->
       io:fwrite("~p\n\n", [Result]);
     true ->
-      io:fwrite("~s\n\n", [jsx:encode(Result)])
+      io:fwrite("~s\n\n", [jesse_lib:json_encode(Result)])
   end,
   case JesseResult of
     {ok, _} ->
@@ -86,11 +86,12 @@ run(Options, [Schema|_] = Schemata, [JsonInstance|JsonInstances]) ->
       halt(1)
   end.
 
+
 jesse_run(JsonInstance, Schema, Schemata) ->
   {ok, _} = application:ensure_all_started(jesse),
   ok = add_schemata(Schemata),
   {ok, JsonInstanceBinary} = file:read_file(JsonInstance),
-  JsonInstanceJsx = jsx:decode(JsonInstanceBinary, [{return_maps, false}]),
+  JsonInstanceJsx = jesse_lib:json_decode(JsonInstanceBinary),
   jesse:validate( Schema
                 , JsonInstanceJsx
                 ).
@@ -99,14 +100,14 @@ add_schemata([]) ->
   ok;
 add_schemata([SchemaFile|Rest]) ->
   {ok, SchemaBin} = file:read_file(SchemaFile),
-  Schema0 = jsx:decode(SchemaBin, [{return_maps, false}]),
+  Schema0 = jesse_lib:json_decode(SchemaBin),
   Schema = maybe_fill_schema_id(SchemaFile, Schema0),
   ok = jesse:add_schema(SchemaFile, Schema),
   add_schemata(Rest).
 
 maybe_fill_schema_id(SchemaFile, Schema) ->
   SchemaFqdn = "file://" ++ filename:absname(SchemaFile),
-  Version = jesse_json_path:value(<<"$schema">>, Schema, undefined),
+  Version = jesse_json_path:value(<<"$schema">>, Schema, ?json_schema_draft6),
   Id = jesse_lib:get_schema_id(Schema),
   case {Version, Id} of
     {?json_schema_draft6, undefined} ->

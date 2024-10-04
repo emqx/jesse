@@ -19,6 +19,9 @@
 %%%=============================================================================
 
 -module(jesse_tests_util).
+%% -dialyzer({nowarn_function, ct:pal/1}).
+%% -dialyzer({nowarn_function, ct:pal/2}).
+%% -dialyzer({nowarn_function, test_server:lookup_config/2}).
 
 %% API
 -export([ get_tests/3
@@ -147,6 +150,10 @@ get_path(Key, Schema) ->
   jesse_json_path:path(Key, Schema).
 
 load_schema(URI) ->
-  {ok, Response} = httpc:request(get, {URI, []}, [], [{body_format, binary}]),
+  HttpOptions = [{ssl, [{verify, verify_none}]}],
+  {ok, Response} = httpc:request( get
+                                , {URI, []}
+                                , HttpOptions
+                                , [{body_format, binary}]),
   {{_Line, 200, _}, _Headers, Body} = Response,
   jsx:decode(Body, [{return_maps, false}]).
