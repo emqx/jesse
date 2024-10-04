@@ -145,7 +145,8 @@ extends_smoke_test(_Config) ->
              <<"extends">> =>
                #{<<"properties">> =>
                    #{<<"disallow">> =>
-                       #{<<"disallow">> => [<<"number">>],<<"required">> => true}}},
+                       #{<<"disallow">> => [<<"number">>],
+                         <<"required">> => true}}},
              <<"id">> => <<"http://json-schema.org/draft-03/schema#">>,
              <<"title">> => <<"title">>,
              <<"type">> => <<"object">>},
