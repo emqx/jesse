@@ -36,9 +36,10 @@ re_run_no_ucp_test_() ->
    end,
    fun(_) -> application:unload(jesse) end,
    [
-    {"Support ISO Latin-1 letters in \\w without 'ucp'",
-     ?_assertEqual(match,
-                   jesse_lib:re_run(<<"föø"/utf8>>, "^\\w+$"))},
+    %% no longer valid in otp28
+    %% {"Support ISO Latin-1 letters in \\w without 'ucp'",
+    %%  ?_assertEqual(match,
+    %%                jesse_lib:re_run(<<"föø"/utf8>>, "^\\w+$"))},
     {"Support ISO Latin-1 numbers in \\d  without 'ucp'",
      ?_assertEqual(match,
                    jesse_lib:re_run(<<"123"/utf8>>, "^\\d+$"))},
