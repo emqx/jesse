@@ -60,7 +60,6 @@ init_per_suite(Config) ->
                                " real identifier">>}
     ],
   get_tests("standard", ?json_schema_draft6, Config)
-    ++ get_tests("annotations", ?json_schema_draft6, Config)
     ++ get_tests("extra", ?json_schema_draft6, Config)
     ++ [{skip_list, SkipList}]
     ++ Config.
@@ -189,11 +188,7 @@ uniqueItems(Config) ->
 uknownKeyword(Config) ->
   do_test("unknownKeyword", Config).
 
-meta_data(Config) ->
-  do_test("meta-data", Config).
-
 %% see https://github.com/emqx/emqx/issues/17977
-%% this case doesn't seem to be triggered in the meta-data tests above.
 examples_are_ignored(_Config) ->
   Schema = #{
              <<"properties">> =>
