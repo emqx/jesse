@@ -604,7 +604,7 @@ check_prefix_items(Value, PrefixItems0, State) when is_list(PrefixItems0) ->
   TupleCount  = min(length(Value), length(PrefixItems)),
   Tuples = lists:zip( lists:sublist(Value, TupleCount)
                     , lists:sublist(PrefixItems, TupleCount)),
-  State1 = check_items_fun(Tuples, State),
+  State1 = check_items_tuples(Tuples, State),
   ev_add_items(State1, lists:seq(0, TupleCount - 1));
 check_prefix_items(_Value, PrefixItems0, State) ->
   handle_schema_invalid({?wrong_type_items, PrefixItems0}, State).
@@ -691,7 +691,7 @@ contains_matches(Values, Schema, State) ->
   lists:reverse(Matched).
 
 %% @private
-check_items_fun(Tuples, State) ->
+check_items_tuples(Tuples, State) ->
   {_, TmpState} = lists:foldl( fun({Item, Schema}, {Index, CurrentState}) ->
                                  NewState = set_current_schema( CurrentState
                                                               , Schema
@@ -864,7 +864,9 @@ check_max_items(Value, MaxItems, State) when length(Value) =< MaxItems ->
 check_max_items(Value, _MaxItems, State) ->
   handle_data_invalid(?wrong_size, Value, State).
 
-%% @doc uniqueItems
+%% @doc uniqueItems. The second argument is the value of the "uniqueItems"
+%% keyword: `false' imposes no constraint; `true' requires every array element
+%% to be unique.
 %% @private
 check_unique_items(_, false, State) ->
   State;
@@ -966,11 +968,11 @@ check_required(_Value, _InvalidRequired, State) ->
 check_required_values(_Value, [], State) -> State;
 check_required_values(Value, [PropertyName | Required], State) ->
   case get_value(PropertyName, Value) =/= ?not_found of
-    'false' ->
+    false ->
       NewState =
         handle_data_invalid(?missing_required_property, PropertyName, State),
       check_required_values(Value, Required, NewState);
-    'true' ->
+    true ->
       check_required_values(Value, Required, State)
   end.
 

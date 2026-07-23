@@ -256,7 +256,7 @@ yet implement (`$recursiveRef`, `$dynamicRef`) raise a `keyword_not_supported`
 schema error instead of being silently ignored, so a schema relying on them can
 never quietly accept data those keywords would reject.
 If `$schema` property isn't provided in the given schema, jesse will use the
-default validator (currently the validator for draft3).
+default validator (currently the validator for draft6).
 
 To specify which validator to use by default (if there's no `schema` property in
 the given schema), one should use 'default_schema_ver' option when call

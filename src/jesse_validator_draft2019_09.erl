@@ -668,12 +668,12 @@ check_items_array(Value, Items, State) ->
         ?not_found ->
           %% Only the tuple positions are evaluated; the rest are left for
           %% "unevaluatedItems".
-          State1 = check_items_fun(lists:zip( lists:sublist(Value, TupleCount)
+          State1 = check_items_tuples(lists:zip( lists:sublist(Value, TupleCount)
                                             , Items)
                                   , State),
           ev_add_items(State1, lists:seq(0, TupleCount - 1));
         true ->
-          State1 = check_items_fun(lists:zip( lists:sublist(Value, TupleCount)
+          State1 = check_items_tuples(lists:zip( lists:sublist(Value, TupleCount)
                                             , Items)
                                   , State),
           ev_add_items(State1, lists:seq(0, length(Value) - 1));
@@ -682,7 +682,7 @@ check_items_array(Value, Items, State) ->
         AdditionalItems ->
           ExtraSchemas = lists:duplicate(NExtra, AdditionalItems),
           Tuples = lists:zip(Value, lists:append(Items, ExtraSchemas)),
-          State1 = check_items_fun(Tuples, State),
+          State1 = check_items_tuples(Tuples, State),
           ev_add_items(State1, lists:seq(0, length(Value) - 1))
       end;
     false ->
@@ -690,12 +690,12 @@ check_items_array(Value, Items, State) ->
                         0 -> Items;
                         _ -> lists:sublist(Items, length(Value))
                       end,
-      State1 = check_items_fun(lists:zip(Value, RelevantItems), State),
+      State1 = check_items_tuples(lists:zip(Value, RelevantItems), State),
       ev_add_items(State1, lists:seq(0, length(Value) - 1))
   end.
 
 %% @private
-check_items_fun(Tuples, State) ->
+check_items_tuples(Tuples, State) ->
   {_, TmpState} = lists:foldl( fun({Item, Schema}, {Index, CurrentState}) ->
                                  NewState = set_current_schema( CurrentState
                                                               , Schema
@@ -868,7 +868,9 @@ check_max_items(Value, MaxItems, State) when length(Value) =< MaxItems ->
 check_max_items(Value, _MaxItems, State) ->
   handle_data_invalid(?wrong_size, Value, State).
 
-%% @doc uniqueItems
+%% @doc uniqueItems. The second argument is the value of the "uniqueItems"
+%% keyword: `false' imposes no constraint; `true' requires every array element
+%% to be unique.
 %% @private
 check_unique_items(_, false, State) ->
   State;
@@ -970,11 +972,11 @@ check_required(_Value, _InvalidRequired, State) ->
 check_required_values(_Value, [], State) -> State;
 check_required_values(Value, [PropertyName | Required], State) ->
   case get_value(PropertyName, Value) =/= ?not_found of
-    'false' ->
+    false ->
       NewState =
         handle_data_invalid(?missing_required_property, PropertyName, State),
       check_required_values(Value, Required, NewState);
-    'true' ->
+    true ->
       check_required_values(Value, Required, State)
   end.
 
