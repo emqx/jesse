@@ -188,4 +188,18 @@ uniqueItems(Config) ->
 uknownKeyword(Config) ->
   do_test("unknownKeyword", Config).
 
+%% see https://github.com/emqx/emqx/issues/17977
+examples_are_ignored(_Config) ->
+  Schema = #{
+             <<"properties">> =>
+               #{<<"name">> =>
+                   #{<<"examples">> => [<<"foo">>],
+                     <<"type">> => <<"string">>}},
+             <<"type">> => <<"object">>},
+  Data = #{<<"name">> => <<"bar">>},
+  ?assertMatch(
+     {ok, _},
+     jesse:validate_with_schema(Schema, Data, [])
+    ).
+
 %% Extra
