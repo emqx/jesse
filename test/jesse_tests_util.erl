@@ -37,6 +37,7 @@
 -export([ load_tests/3
         , run_all/1
         , start_remotes_server/1
+        , stop_remotes_server/1
         ]).
 
 -include_lib("common_test/include/ct.hrl").
@@ -122,50 +123,35 @@ warn_stale_skips(AllTests, SkipList) ->
 %% @doc Start an httpd instance serving the `remotes' directory on port 1234,
 %% as required by the `refRemote' tests. Idempotent-ish: safe to call once per
 %% suite from init_per_suite.
+%% @doc Start the httpd and return its service pid, which the caller keeps in
+%% Config and hands to stop_remotes_server/1 from end_per_suite. Suites run
+%% sequentially, so each owns port 1234 for its lifetime. Any start error
+%% (including a leaked/foreign listener) aborts init_per_suite, so a setup
+%% failure is never mistaken for a conformance failure.
+%%
+%% The port is fixed at 1234 because the upstream refRemote schemas embed
+%% `http://localhost:1234/...' literally (a dynamic port would require rewriting
+%% every embedded URL in both the test and remote schemas).
 start_remotes_server(Config) ->
   DocumentRoot = filename:join(?config(data_dir, Config), "remotes"),
-  Port = 1234,
-  ServerOpts = [ {port, Port}
+  ServerOpts = [ {port, 1234}
                , {server_name, "localhost"}
                , {server_root, "."}
                , {document_root, DocumentRoot}
                ],
   {ok, _} = application:ensure_all_started(inets),
   case inets:start(httpd, ServerOpts) of
-    {ok, _Pid} ->
-      ok;
-    %% Every suite serves the same remotes content but via its own symlink, so
-    %% the config differs and a later start clashes on the port. That is fine
-    %% *iff* the bound server is really our remotes server; verify it. Any
-    %% other error is a genuine harness failure and must abort init_per_suite
-    %% (not be mistaken for a conformance failure).
-    {error, {already_started, _}} ->
-      verify_remotes_server(Port, DocumentRoot);
-    {error, eaddrinuse} ->
-      verify_remotes_server(Port, DocumentRoot);
-    {error, {listen, eaddrinuse}} ->
-      verify_remotes_server(Port, DocumentRoot);
+    {ok, Pid} ->
+      Pid;
     {error, Reason} ->
       error({failed_to_start_remotes_server, Reason})
   end.
 
-%% @doc Confirm that whatever already holds `Port' is a remotes server serving
-%% the content we expect (a previous suite in this node), not a foreign process
-%% or another document root: fetch a known fixture over HTTP and byte-compare it
-%% to the file on disk. `Expected' is bound before the request, so the success
-%% clause only matches when the served bytes are identical.
-%% @private
-verify_remotes_server(Port, DocumentRoot) ->
-  {ok, Expected} = file:read_file(filename:join(DocumentRoot, "integer.json")),
-  Url = "http://localhost:" ++ integer_to_list(Port) ++ "/integer.json",
-  case httpc:request(get, {Url, []}, [], [{body_format, binary}]) of
-    {ok, {{_, 200, _}, _, Expected}} ->
-      ok;
-    {ok, {{_, 200, _}, _, Other}} ->
-      error({remotes_server_wrong_content, Port, Url, Other});
-    Other ->
-      error({remotes_server_unreachable, Port, Url, Other})
-  end.
+%% @doc Stop the httpd started by start_remotes_server/1.
+stop_remotes_server(Pid) when is_pid(Pid) ->
+  inets:stop(httpd, Pid);
+stop_remotes_server(_) ->
+  ok.
 
 %%% Internal functions
 
@@ -183,15 +169,25 @@ run_case(Key, KeyBin, Case, DefaultSchema, SkipList) ->
     true ->
       [{Key, CaseDesc, <<"*">>, skip}];
     false ->
-      Schema      = get_path(?SCHEMA, Case),
-      Opts0       = get_path(?OPTIONS, Case),
-      SchemaTests = get_path(?TESTS, Case),
-      Opts = [ {default_schema_ver, DefaultSchema}
-             , {schema_loader_fun, fun load_schema/1}
-             ] ++ make_options(Opts0),
-      [ run_assertion(Key, CaseDesc, Schema, Opts, Test)
-        || Test <- SchemaTests ]
+      %% Case setup (option parsing etc.) runs inside try/catch so a bad/unknown
+      %% option is collected as this case's failure rather than aborting the
+      %% whole aggregate testcase.
+      try run_case_tests(Key, CaseDesc, Case, DefaultSchema)
+      catch ?EXCEPTION(C, R, Stacktrace)
+        [{Key, CaseDesc, <<"(case setup)">>,
+          {crash, {C, R, hd_or_undefined(Stacktrace)}}}]
+      end
   end.
+
+run_case_tests(Key, CaseDesc, Case, DefaultSchema) ->
+  Schema      = get_path(?SCHEMA, Case),
+  Opts0       = get_path(?OPTIONS, Case),
+  SchemaTests = get_path(?TESTS, Case),
+  Opts = [ {default_schema_ver, DefaultSchema}
+         , {schema_loader_fun, fun load_schema/1}
+         ] ++ make_options(Opts0),
+  [ run_assertion(Key, CaseDesc, Schema, Opts, Test)
+    || Test <- SchemaTests ].
 
 run_assertion(Key, CaseDesc, Schema, Opts, Test) ->
   TestDesc = get_path(?DESCRIPTION, Test),

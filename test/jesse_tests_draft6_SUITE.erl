@@ -34,12 +34,13 @@ all() ->
 
 init_per_suite(Config) ->
   {ok, _} = application:ensure_all_started(jesse),
-  jesse_tests_util:start_remotes_server(Config),
+  Httpd = jesse_tests_util:start_remotes_server(Config),
   AllTests = jesse_tests_util:load_tests("standard", ?META, Config)
              ++ jesse_tests_util:load_tests("extra", ?META, Config),
-  [{all_tests, AllTests}, {skip_list, skip_list()} | Config].
+  [{httpd, Httpd}, {all_tests, AllTests}, {skip_list, skip_list()} | Config].
 
-end_per_suite(_Config) ->
+end_per_suite(Config) ->
+  jesse_tests_util:stop_remotes_server(?config(httpd, Config)),
   ok.
 
 conformance(Config) ->
