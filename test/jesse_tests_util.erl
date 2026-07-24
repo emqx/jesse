@@ -124,20 +124,47 @@ warn_stale_skips(AllTests, SkipList) ->
 %% suite from init_per_suite.
 start_remotes_server(Config) ->
   DocumentRoot = filename:join(?config(data_dir, Config), "remotes"),
-  ServerOpts = [ {port, 1234}
+  Port = 1234,
+  ServerOpts = [ {port, Port}
                , {server_name, "localhost"}
                , {server_root, "."}
                , {document_root, DocumentRoot}
                ],
-  inets:start(),
-  %% All suites serve the same remotes directory, so the first one to run wins
-  %% the port; later calls harmlessly find it already bound.
+  {ok, _} = application:ensure_all_started(inets),
   case inets:start(httpd, ServerOpts) of
-    {ok, _Pid}                     -> ok;
-    {error, {already_started, _}}  -> ok;
-    {error, eaddrinuse}            -> ok;
-    {error, {listen, eaddrinuse}}  -> ok;
-    _Other                         -> ok
+    {ok, _Pid} ->
+      ok;
+    %% Every suite serves the same remotes content but via its own symlink, so
+    %% the config differs and a later start clashes on the port. That is fine
+    %% *iff* the bound server is really our remotes server; verify it. Any
+    %% other error is a genuine harness failure and must abort init_per_suite
+    %% (not be mistaken for a conformance failure).
+    {error, {already_started, _}} ->
+      verify_remotes_server(Port, DocumentRoot);
+    {error, eaddrinuse} ->
+      verify_remotes_server(Port, DocumentRoot);
+    {error, {listen, eaddrinuse}} ->
+      verify_remotes_server(Port, DocumentRoot);
+    {error, Reason} ->
+      error({failed_to_start_remotes_server, Reason})
+  end.
+
+%% @doc Confirm that whatever already holds `Port' is a remotes server serving
+%% the content we expect (a previous suite in this node), not a foreign process
+%% or another document root: fetch a known fixture over HTTP and byte-compare it
+%% to the file on disk. `Expected' is bound before the request, so the success
+%% clause only matches when the served bytes are identical.
+%% @private
+verify_remotes_server(Port, DocumentRoot) ->
+  {ok, Expected} = file:read_file(filename:join(DocumentRoot, "integer.json")),
+  Url = "http://localhost:" ++ integer_to_list(Port) ++ "/integer.json",
+  case httpc:request(get, {Url, []}, [], [{body_format, binary}]) of
+    {ok, {{_, 200, _}, _, Expected}} ->
+      ok;
+    {ok, {{_, 200, _}, _, Other}} ->
+      error({remotes_server_wrong_content, Port, Url, Other});
+    Other ->
+      error({remotes_server_unreachable, Port, Url, Other})
   end.
 
 %%% Internal functions
