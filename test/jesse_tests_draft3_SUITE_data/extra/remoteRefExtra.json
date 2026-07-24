@@ -4,9 +4,9 @@
         "schema": {
             "properties": {
                 "0_list": {
-                    "items": {"$ref": "http://localhost:1234/subSchemas.json#/integer"}
+                    "items": {"$ref": "http://localhost:1234/integer.json"}
                 },
-                "1_any": {"$ref": "http://localhost:1234/subSchemas.json#/integer"}
+                "1_any": {"$ref": "http://localhost:1234/integer.json"}
             }
         },
         "tests": [
@@ -24,10 +24,10 @@
             "properties": {
                 "0_object": {
                     "properties": {
-                        "0_prop": {"$ref": "http://localhost:1234/subSchemas.json#/integer"}
+                        "0_prop": {"$ref": "http://localhost:1234/integer.json"}
                     }
                 },
-                "1_any": {"$ref": "http://localhost:1234/subSchemas.json#/integer"}
+                "1_any": {"$ref": "http://localhost:1234/integer.json"}
             }
         },
         "tests": [
@@ -45,10 +45,10 @@
             "properties": {
                 "0_object": {
                     "patternProperties": {
-                        "0_prop": {"$ref": "http://localhost:1234/subSchemas.json#/integer"}
+                        "0_prop": {"$ref": "http://localhost:1234/integer.json"}
                     }
                 },
-                "1_any": {"$ref": "http://localhost:1234/subSchemas.json#/integer"}
+                "1_any": {"$ref": "http://localhost:1234/integer.json"}
             }
         },
         "tests": [

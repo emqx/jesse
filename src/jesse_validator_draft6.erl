@@ -1038,7 +1038,8 @@ check_required_values(Value, [PropertyName | Required], State) ->
 %%
 %% @private
 check_max_properties(Value, MaxProperties, State)
-  when is_integer(MaxProperties), MaxProperties >= 0 ->
+  when is_number(MaxProperties), MaxProperties >= 0,
+       trunc(MaxProperties) == MaxProperties ->
     case length(unwrap(Value)) =< MaxProperties of
       true  -> State;
       false -> handle_data_invalid(?too_many_properties, Value, State)
@@ -1057,7 +1058,8 @@ check_max_properties(_Value, _MaxProperties, State) ->
 %%
 %% @private
 check_min_properties(Value, MinProperties, State)
-  when is_integer(MinProperties), MinProperties >= 0 ->
+  when is_number(MinProperties), MinProperties >= 0,
+       trunc(MinProperties) == MinProperties ->
     case length(unwrap(Value)) >= MinProperties of
       true  -> State;
       false -> handle_data_invalid(?too_few_properties, Value, State)

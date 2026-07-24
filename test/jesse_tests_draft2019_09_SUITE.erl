@@ -13,14 +13,8 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 %%
-%%
-%% @doc jesse test suite which covers Draft 2019-09. It uses the official
-%% JSON-Schema-Test-Suite
-%% (https://github.com/json-schema/JSON-Schema-Test-Suite) as the test data.
-%%
-%% Groups/cases not yet supported by jesse are enumerated in the skip-list
-%% below (with the reason) rather than being silently dropped. See the module
-%% doc of `jesse_validator_draft2019_09' for the safety rationale.
+%% @doc Draft 2019-09 conformance against the official JSON-Schema-Test-Suite.
+%% Test files are auto-discovered; unsupported cases are in skip_list/0.
 %% @end
 %%%=============================================================================
 
@@ -30,206 +24,64 @@
          , nowarn_export_all
          ]).
 
--define(EXCLUDED_FUNS, [ module_info
-                       , all
-                       , init_per_suite
-                       , end_per_suite
-                       ]).
-
 -include_lib("common_test/include/ct.hrl").
--include_lib("stdlib/include/assert.hrl").
 
--import(jesse_tests_util, [ get_tests/3
-                          , do_test/2
-                          ]).
-
--define(json_schema_draft2019_09,
-        <<"https://json-schema.org/draft/2019-09/schema">>).
+-define(META, <<"https://json-schema.org/draft/2019-09/schema">>).
 
 all() ->
-  Exports = ?MODULE:module_info(exports),
-  %% Test cases are the arity-1 exported functions; helpers like skip_list/0
-  %% are excluded by the arity guard.
-  [F || {F, 1} <- Exports, not lists:member(F, ?EXCLUDED_FUNS)].
+  [conformance].
 
 init_per_suite(Config) ->
   {ok, _} = application:ensure_all_started(jesse),
-  get_tests("standard", ?json_schema_draft2019_09, Config)
-    ++ [{skip_list, skip_list()}]
-    ++ Config.
+  Httpd = jesse_tests_util:start_remotes_server(Config),
+  AllTests = jesse_tests_util:load_tests("standard", ?META, Config)
+             ++ jesse_tests_util:load_tests("extra", ?META, Config),
+  [{httpd, Httpd}, {all_tests, AllTests}, {skip_list, skip_list()} | Config].
 
-end_per_suite(_Config) ->
+end_per_suite(Config) ->
+  jesse_tests_util:stop_remotes_server(?config(httpd, Config)),
   ok.
 
-%% @doc Cases that jesse does not yet handle for draft 2019-09.
-%% `{File, '_'}' skips every case in a file; `{File, Description}' skips one.
-%% Each entry is deliberate: silently ignoring an unsupported keyword could
-%% false-accept invalid data, so unsupported keywords hard-error and their
-%% test groups are skip-listed here instead.
+conformance(Config) ->
+  jesse_tests_util:run_all(Config).
+
+%% @doc Cases jesse does not (yet) support for draft 2019-09. `{File, '_'}'
+%% skips a whole file; `{File, Description}' skips one case. Unsupported
+%% keywords hard-error rather than false-accept, so skipping is safe.
 skip_list() ->
-    %% "$recursiveRef"/"$recursiveAnchor": milestone J3 (dynamic scope stack).
-    %% "$recursiveRef" hard-errors so it cannot false-accept.
-  [ {<<"recursiveRef">>, '_'}
-    %% Remote-schema fetching harness not wired for this dialect yet.
-  , {<<"refRemote">>, '_'}
-  , {<<"ref">>, <<"remote ref, containing refs itself">>}
+  [ %% --- dynamic / recursive referencing (dynamic scope stack) ---
+    %% "$recursiveRef"/"$recursiveAnchor" hard-error rather than false-accept.
+    {<<"recursiveRef">>, '_'}
   , {<<"ref">>, <<"Recursive references between schemas">>}
-    %% "$defs" against the metaschema needs the remote 2019-09 metaschema
-    %% (which itself uses "$recursiveRef").
-  , {<<"defs">>, <<"validate definition against metaschema">>}
-    %% "$anchor" resolution across an "$id" base-URI change (in-document remote
-    %% scope map) is deferred; the local-anchor cases are supported.
+  , {<<"ref">>, <<"$ref with $recursiveAnchor">>}
+  , {<<"unevaluatedItems">>, <<"unevaluatedItems with $recursiveRef">>}
+  , {<<"unevaluatedProperties">>,
+     <<"unevaluatedProperties with $recursiveRef">>}
+    %% --- in-document "$id" / base-URI resolution (nearest-parent scoping,
+    %% location-independent identifiers, refs resolved against $id bases) ---
   , {<<"anchor">>, <<"Location-independent identifier with absolute URI">>}
   , {<<"anchor">>, <<"Location-independent identifier with base URI change"
                      " in subschema">>}
-    %% Every id.json case but the last validates a schema document against the
-    %% remote 2019-09 metaschema (which uses "$recursiveRef"); the last needs an
-    %% in-document "$id" scope map. Both are deferred, so skip the whole file.
-  , {<<"id">>, '_'}
-    %% "$id" buried in an unknown keyword: needs in-document "$id" scoping.
-  , {<<"unknownKeyword">>, <<"$id inside an unknown keyword is not a"
-                             " real identifier">>}
+  , {<<"anchor">>, <<"same $anchor with different base uri">>}
+  , {<<"ref">>, <<"$id must be resolved against nearest parent, not just"
+                  " immediate parent">>}
+  , {<<"ref">>, <<"order of evaluation: $id and $ref">>}
+  , {<<"ref">>, <<"order of evaluation: $id and $ref on nested schema">>}
+  , {<<"ref">>, <<"refs with relative uris and defs">>}
+  , {<<"ref">>, <<"relative refs with absolute uris and defs">>}
+  , {<<"ref">>, <<"ref with absolute-path-reference">>}
+  , {<<"ref">>, <<"ref to if">>}
+  , {<<"ref">>, <<"ref to then">>}
+  , {<<"ref">>, <<"ref to else">>}
+  , {<<"refRemote">>, <<"base URI change - change folder">>}
+  , {<<"refRemote">>, <<"base URI change - change folder in subschema">>}
+  , {<<"refRemote">>, <<"remote HTTP ref with nested absolute ref">>}
+    %% --- "urn:" scheme base URIs ---
+  , {<<"ref">>, <<"URN ref with nested pointer ref">>}
+    %% --- empty-string reference tokens ("#/$defs//...") ---
+  , {<<"ref">>, <<"empty tokens in $ref json-pointer">>}
+    %% --- remote metaschema fetch ("$ref" to the 2019-09 metaschema) ---
+  , {<<"defs">>, <<"validate definition against metaschema">>}
+    %% --- custom metaschema "$vocabulary" processing ---
+  , {<<"vocabulary">>, '_'}
   ].
-
-%%% Testcases (one per keyword file in tests/draft2019-09)
-
-additionalItems(Config) ->
-  do_test("additionalItems", Config).
-
-additionalProperties(Config) ->
-  do_test("additionalProperties", Config).
-
-allOf(Config) ->
-  do_test("allOf", Config).
-
-anchor(Config) ->
-  do_test("anchor", Config).
-
-anyOf(Config) ->
-  do_test("anyOf", Config).
-
-boolean_schema(Config) ->
-  do_test("boolean_schema", Config).
-
-const(Config) ->
-  do_test("const", Config).
-
-contains(Config) ->
-  do_test("contains", Config).
-
-content(Config) ->
-  do_test("content", Config).
-
-default(Config) ->
-  do_test("default", Config).
-
-defs(Config) ->
-  do_test("defs", Config).
-
-dependentRequired(Config) ->
-  do_test("dependentRequired", Config).
-
-dependentSchemas(Config) ->
-  do_test("dependentSchemas", Config).
-
-enum(Config) ->
-  do_test("enum", Config).
-
-exclusiveMaximum(Config) ->
-  do_test("exclusiveMaximum", Config).
-
-exclusiveMinimum(Config) ->
-  do_test("exclusiveMinimum", Config).
-
-format(Config) ->
-  do_test("format", Config).
-
-id(Config) ->
-  do_test("id", Config).
-
-'if-then-else'(Config) ->
-  do_test("if-then-else", Config).
-
-'infinite-loop-detection'(Config) ->
-  do_test("infinite-loop-detection", Config).
-
-items(Config) ->
-  do_test("items", Config).
-
-maxContains(Config) ->
-  do_test("maxContains", Config).
-
-maximum(Config) ->
-  do_test("maximum", Config).
-
-maxItems(Config) ->
-  do_test("maxItems", Config).
-
-maxLength(Config) ->
-  do_test("maxLength", Config).
-
-maxProperties(Config) ->
-  do_test("maxProperties", Config).
-
-minContains(Config) ->
-  do_test("minContains", Config).
-
-minimum(Config) ->
-  do_test("minimum", Config).
-
-minItems(Config) ->
-  do_test("minItems", Config).
-
-minLength(Config) ->
-  do_test("minLength", Config).
-
-minProperties(Config) ->
-  do_test("minProperties", Config).
-
-multipleOf(Config) ->
-  do_test("multipleOf", Config).
-
-'not'(Config) ->
-  do_test("not", Config).
-
-oneOf(Config) ->
-  do_test("oneOf", Config).
-
-pattern(Config) ->
-  do_test("pattern", Config).
-
-patternProperties(Config) ->
-  do_test("patternProperties", Config).
-
-properties(Config) ->
-  do_test("properties", Config).
-
-propertyNames(Config) ->
-  do_test("propertyNames", Config).
-
-recursiveRef(Config) ->
-  do_test("recursiveRef", Config).
-
-ref(Config) ->
-  do_test("ref", Config).
-
-refRemote(Config) ->
-  do_test("refRemote", Config).
-
-required(Config) ->
-  do_test("required", Config).
-
-type(Config) ->
-  do_test("type", Config).
-
-unevaluatedItems(Config) ->
-  do_test("unevaluatedItems", Config).
-
-unevaluatedProperties(Config) ->
-  do_test("unevaluatedProperties", Config).
-
-uniqueItems(Config) ->
-  do_test("uniqueItems", Config).
-
-unknownKeyword(Config) ->
-  do_test("unknownKeyword", Config).
