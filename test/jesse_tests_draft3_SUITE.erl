@@ -27,11 +27,12 @@
          ]).
 
 -include_lib("common_test/include/ct.hrl").
+-include_lib("stdlib/include/assert.hrl").
 
 -define(META, <<"http://json-schema.org/draft-03/schema#">>).
 
 all() ->
-  [conformance].
+  [conformance, extends_smoke_test].
 
 init_per_suite(Config) ->
   {ok, _} = application:ensure_all_started(jesse),
@@ -46,6 +47,22 @@ end_per_suite(Config) ->
 
 conformance(Config) ->
   jesse_tests_util:run_all(Config).
+
+%% Smoke test for the draft-03 "extends" keyword.
+extends_smoke_test(_Config) ->
+  Schema = #{
+             <<"$schema">> => <<"http://json-schema.org/draft-03/schema#">>,
+             <<"description">> => <<"a description">>,
+             <<"extends">> =>
+               #{<<"properties">> =>
+                   #{<<"disallow">> =>
+                       #{<<"disallow">> => [<<"number">>],
+                         <<"required">> => true}}},
+             <<"id">> => <<"http://json-schema.org/draft-03/schema#">>,
+             <<"title">> => <<"title">>,
+             <<"type">> => <<"object">>},
+  Data = #{<<"disallow">> => <<"a">>},
+  ?assertEqual({ok, Data}, jesse:validate_with_schema(Schema, Data)).
 
 %% @doc Cases jesse does not (yet) support for draft 03. `{File, '_'}' skips a
 %% whole file; `{File, Description}' skips one case.

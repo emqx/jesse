@@ -26,11 +26,12 @@
          ]).
 
 -include_lib("common_test/include/ct.hrl").
+-include_lib("stdlib/include/assert.hrl").
 
 -define(META, <<"http://json-schema.org/draft-06/schema#">>).
 
 all() ->
-  [conformance].
+  [conformance, examples_are_ignored].
 
 init_per_suite(Config) ->
   {ok, _} = application:ensure_all_started(jesse),
@@ -45,6 +46,22 @@ end_per_suite(Config) ->
 
 conformance(Config) ->
   jesse_tests_util:run_all(Config).
+
+%% Regression: draft-06 "examples" is a metadata annotation, so a non-array
+%% instance must not be rejected just because a subschema declares "examples".
+%% See https://github.com/emqx/emqx/issues/17977
+examples_are_ignored(_Config) ->
+  Schema = #{
+             <<"properties">> =>
+               #{<<"name">> =>
+                   #{<<"examples">> => [<<"foo">>],
+                     <<"type">> => <<"string">>}},
+             <<"type">> => <<"object">>},
+  Data = #{<<"name">> => <<"bar">>},
+  ?assertMatch(
+     {ok, _},
+     jesse:validate_with_schema(Schema, Data, [])
+    ).
 
 %% @doc Cases jesse does not (yet) support for draft 06. `{File, '_'}' skips a
 %% whole file; `{File, Description}' skips one case.
