@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+* Update the JSON-Schema-Test-Suite submodule from 2021 to current (754
+  commits) and rework the per-draft CT suites to auto-discover test files
+  (globbing) and run as one aggregate case that collects every failure and
+  reports a pass/skip/fail summary — so future suite bumps no longer break on
+  added/removed keyword files. Unsupported cases are enumerated per draft in
+  `skip_list/0` with reasons, and the harness warns about stale skip entries.
+  Also fixes two real conformance bugs surfaced by the newer suite:
+  `maxProperties`/`minProperties` now accept an integer-valued float
+  (e.g. `2.0`) per draft-06+, matching the "integer" definition.
+  Compliance against the current suite: draft-03 446/447, draft-04 664/671,
+  draft-06 827/839, draft 2019-09 1200/1234, draft 2020-12 1226/1276; the
+  remainder are documented gaps (in-document `$id` base-URI resolution,
+  `$recursiveRef`/`$dynamicRef`, `$vocabulary`, remote-metaschema fetch, URN
+  base URIs, and ECMA `\p{...}` regex property escapes).
+
 * Add partial support for JSON Schema draft 2019-09 and draft 2020-12. New
   dialect modules `jesse_validator_draft2019_09` and
   `jesse_validator_draft2020_12`, dispatched from the schema's `$schema` URI

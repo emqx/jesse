@@ -668,14 +668,12 @@ check_items_array(Value, Items, State) ->
         ?not_found ->
           %% Only the tuple positions are evaluated; the rest are left for
           %% "unevaluatedItems".
-          State1 = check_items_tuples(lists:zip( lists:sublist(Value, TupleCount)
-                                            , Items)
-                                  , State),
+          Tuples = lists:zip(lists:sublist(Value, TupleCount), Items),
+          State1 = check_items_tuples(Tuples, State),
           ev_add_items(State1, lists:seq(0, TupleCount - 1));
         true ->
-          State1 = check_items_tuples(lists:zip( lists:sublist(Value, TupleCount)
-                                            , Items)
-                                  , State),
+          Tuples = lists:zip(lists:sublist(Value, TupleCount), Items),
+          State1 = check_items_tuples(Tuples, State),
           ev_add_items(State1, lists:seq(0, length(Value) - 1));
         false ->
           handle_data_invalid(?no_extra_items_allowed, Value, State);
@@ -983,7 +981,8 @@ check_required_values(Value, [PropertyName | Required], State) ->
 %% @doc maxProperties
 %% @private
 check_max_properties(Value, MaxProperties, State)
-  when is_integer(MaxProperties), MaxProperties >= 0 ->
+  when is_number(MaxProperties), MaxProperties >= 0,
+       trunc(MaxProperties) == MaxProperties ->
     case length(unwrap(Value)) =< MaxProperties of
       true  -> State;
       false -> handle_data_invalid(?too_many_properties, Value, State)
@@ -994,7 +993,8 @@ check_max_properties(_Value, _MaxProperties, State) ->
 %% @doc minProperties
 %% @private
 check_min_properties(Value, MinProperties, State)
-  when is_integer(MinProperties), MinProperties >= 0 ->
+  when is_number(MinProperties), MinProperties >= 0,
+       trunc(MinProperties) == MinProperties ->
     case length(unwrap(Value)) >= MinProperties of
       true  -> State;
       false -> handle_data_invalid(?too_few_properties, Value, State)
