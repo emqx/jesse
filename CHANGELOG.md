@@ -1,42 +1,24 @@
 # CHANGELOG
 
-## Unreleased
+## 1.9.0
 
-* Update the JSON-Schema-Test-Suite submodule from 2021 to current (754
-  commits) and rework the per-draft CT suites to auto-discover test files
-  (globbing) and run as one aggregate case that collects every failure and
-  reports a pass/skip/fail summary — so future suite bumps no longer break on
-  added/removed keyword files. Unsupported cases are enumerated per draft in
-  `skip_list/0` with reasons, and the harness warns about stale skip entries.
-  Also fixes two real conformance bugs surfaced by the newer suite:
-  `maxProperties`/`minProperties` now accept an integer-valued float
-  (e.g. `2.0`) per draft-06+, matching the "integer" definition.
-  Compliance against the current suite: draft-03 446/447, draft-04 664/671,
-  draft-06 827/839, draft 2019-09 1200/1234, draft 2020-12 1226/1276; the
-  remainder are documented gaps (in-document `$id` base-URI resolution,
-  `$recursiveRef`/`$dynamicRef`, `$vocabulary`, remote-metaschema fetch, URN
-  base URIs, and ECMA `\p{...}` regex property escapes).
+* Add support for JSON Schema **draft 2019-09** and **draft 2020-12**, selected
+  by the schema's `$schema` URI. Supported keywords include `dependentRequired`,
+  `dependentSchemas`, `if`/`then`/`else`, `minContains`/`maxContains`, `$defs`,
+  local `$anchor`, `$ref` evaluated alongside sibling keywords, and
+  `unevaluatedProperties`/`unevaluatedItems`; draft 2020-12 also supports
+  `prefixItems`. Keywords not yet implemented (`$recursiveRef`, `$dynamicRef`)
+  raise an error instead of being silently ignored, so they can never accept
+  data they should reject. Adds `jesse:supported_dialect/1`.
 
-* Add partial support for JSON Schema draft 2019-09 and draft 2020-12. New
-  dialect modules `jesse_validator_draft2019_09` and
-  `jesse_validator_draft2020_12`, dispatched from the schema's `$schema` URI
-  (`https://json-schema.org/draft/2019-09/schema` and
-  `.../2020-12/schema`, with or without a trailing `#`). Implemented keywords:
-  `dependentRequired`, `dependentSchemas`, `if`/`then`/`else`,
-  `minContains`/`maxContains`, `$defs`, local `$anchor` resolution, `$ref`
-  evaluated alongside sibling keywords, and
-  `unevaluatedProperties`/`unevaluatedItems` (with the full annotation
-  model — adjacent keywords and successful in-place applicators contribute,
-  cousins/uncles do not). Draft 2020-12 additionally handles the `prefixItems`
-  rename (tuple validation) and `items` as the after-`prefixItems` applicator.
-  `format` is annotation-only (non-asserting), per the dialect default.
-  Not yet implemented — `$recursiveRef` (2019-09) and `$dynamicRef` (2020-12) —
-  raise a `keyword_not_supported` schema error instead of being silently
-  ignored, so they can never false-accept invalid data.
-  Validated against the official JSON-Schema-Test-Suite: 927/1003 individual
-  draft 2019-09 tests and 935/997 draft 2020-12 tests pass; the remainder are
-  for `$recursiveRef`/`$dynamicRef`, remote-schema fetching, and in-document
-  `$id` scoping.
+* Fix draft-06 to treat `examples` as an annotation, so a valid instance is no
+  longer rejected when a subschema declares `examples`.
+
+* Fix `maxProperties`/`minProperties` to accept an integer-valued float such as
+  `2.0`, per the draft-06+ definition of "integer".
+
+* Update the bundled JSON-Schema-Test-Suite to current upstream and rework the
+  conformance test harness to track it automatically.
 
 ## 1.8.0 (prev: 1.7.12)
 
