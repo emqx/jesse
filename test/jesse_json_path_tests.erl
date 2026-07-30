@@ -192,3 +192,30 @@ map_object_test_() ->
         jesse_json_path:path(
           [foo, bar], #{foo => #{bar => #{a => b}}}, not_found))].
 -endif.
+
+parse_json_pointer_test() ->
+    %% ASCII tokens
+    ?assertEqual(
+       [<<>>, <<"definitions">>, <<"foo">>],
+       jesse_json_path:parse(<<"/definitions/foo">>)),
+    %% percent-encoded multi-byte UTF-8 must decode to the raw bytes
+    ?assertEqual(
+       [<<>>, <<"definitions">>, <<"姓名类型"/utf8>>],
+       jesse_json_path:parse(
+         <<"/definitions/%E5%A7%93%E5%90%8D%E7%B1%BB%E5%9E%8B">>)),
+    %% raw multi-byte UTF-8 must survive tokenization unchanged
+    ?assertEqual(
+       [<<>>, <<"definitions">>, <<"姓名类型"/utf8>>],
+       jesse_json_path:parse(<<"/definitions/姓名类型"/utf8>>)),
+    %% RFC 6901 escape order: "~01" is "~1", not "/"
+    ?assertEqual(
+       [<<>>, <<"a~1b">>],
+       jesse_json_path:parse(<<"/a~01b">>)),
+    ?assertEqual(
+       [<<>>, <<"a/b">>, <<"m~n">>],
+       jesse_json_path:parse(<<"/a~1b/m~0n">>)),
+    %% every occurrence is transformed, not just the first
+    ?assertEqual(
+       [<<>>, <<"a/b/c">>, <<"x~y~z">>],
+       jesse_json_path:parse(<<"/a~1b~1c/x~0y~0z">>)),
+    ok.
