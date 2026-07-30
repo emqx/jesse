@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 1.9.1
+
+* Fix JSON Pointer `$ref` fragments referring to non-ASCII (multi-byte UTF-8)
+  key names: both percent-encoded (`#/definitions/%E5%A7%93...`) and raw
+  (`#/definitions/姓名类型`) forms previously failed to resolve because the
+  decoded bytes were re-encoded per character, producing a double-encoded key.
+
+* Fix RFC 6901 escape handling in JSON Pointer tokens: `~1` is now transformed
+  before `~0` (so `~01` decodes to `~1`, not `/`), and every occurrence is
+  transformed instead of only the first one.
+
 ## 1.9.0
 
 * Add support for JSON Schema **draft 2019-09** and **draft 2020-12**, selected

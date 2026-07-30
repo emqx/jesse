@@ -300,13 +300,18 @@ normalize(K, undefined) ->
 
 -spec parse_json_pointer_token(Token :: string()) -> binary().
 parse_json_pointer_token(Token) ->
-  DecodedToken = unicode:characters_to_binary(hex_decode(Token)),
+  %% `Token' is a list of bytes (latin-1 chars produced by re:split), and
+  %% percent-escapes decode to raw bytes too, so reassemble byte-wise;
+  %% converting per-character would re-encode multi-byte UTF-8 key names.
+  DecodedToken = iolist_to_binary(hex_decode(Token)),
+  %% RFC 6901: transform every "~1" first, then every "~0", so that
+  %% e.g. "~01" decodes to "~1" and not to "/".
   lists:foldl( fun({From, To}, T) ->
-                   binary:replace(T, From, To)
+                   binary:replace(T, From, To, [global])
                end
              , DecodedToken
-             , [ {<<"~0">>, <<"~">>}
-               , {<<"~1">>, <<"/">>}
+             , [ {<<"~1">>, <<"/">>}
+               , {<<"~0">>, <<"~">>}
                ]
              ).
 
